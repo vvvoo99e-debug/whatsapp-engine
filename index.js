@@ -1,41 +1,51 @@
-const { default: makeWASocket, useMultiFileAuthState, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, Browsers, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const express = require('express');
 const app = express();
 
 const MY_PHONE_NUMBER = "962785467150"; 
-let isRequesting = false; // لمنع تكرار طلب الكود
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_session');
+    
     const sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
         browser: Browsers.macOS('Desktop'),
-        logger: pino({ level: 'silent' })
+        logger: pino({ level: 'silent' }) // صامت عشان ما يزعجك بالترمنال
     });
 
-    if (!sock.authState.creds.registered && !isRequesting) {
-        isRequesting = true; // قفل الطلب عشان ما يطلع كود ثاني
-        console.log("⏳ جاري طلب كود الربط (مرة واحدة فقط)...");
+    // طلب الكود إذا الحساب مش مسجل
+    if (!sock.authState.creds.registered) {
+        console.log("⏳ جاري طلب كود الربط...");
+        
+        // 3 ثواني كافية جداً، ما في داعي لـ 8 ثواني
         setTimeout(async () => {
             try {
                 const code = await sock.requestPairingCode(MY_PHONE_NUMBER);
-                console.log(`\n🔥 كود الربط الثابت هو: ${code}\n`);
+                console.log(`\n🔥 كود الربط الخاص بك هو: ${code}\n`);
             } catch (err) {
-                console.log('❌ فشل الطلب، جاري المحاولة بعد قليل...');
-                isRequesting = false;
+                console.log('❌ فشل طلب الكود. (تأكد أنك حذفت مجلد auth_session قبل التشغيل)');
             }
-        }, 8000); // زيادة الوقت لضمان استقرار السيرفر
+        }, 3000); 
     }
 
     sock.ev.on('connection.update', (update) => {
-        const { connection } = update;
+        const { connection, lastDisconnect } = update;
+        
         if (connection === 'open') {
             console.log("🚀 تم الربط بنجاح!");
-            isRequesting = false;
+        } else if (connection === 'close') {
+            // هون بنفحص سبب الإغلاق عشان ما يدخل بدوامة تعليق
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log("⚠️ انقطع الاتصال، جاري إعادة المحاولة:", shouldReconnect);
+            
+            if (shouldReconnect) {
+                connectToWhatsApp();
+            } else {
+                console.log("❌ تم تسجيل الخروج. يرجى حذف مجلد auth_session والبدء من جديد.");
+            }
         }
-        if (connection === 'close') connectToWhatsApp();
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -43,4 +53,4 @@ async function connectToWhatsApp() {
 
 connectToWhatsApp();
 app.get('/', (req, res) => res.send('Server Active 🚀'));
-app.listen(process.env.PORT || 3000);
+app.listen(process.env.PORT || 3000, () => console.log("🌐 السيرفر شغال وينتظر الربط..."));
