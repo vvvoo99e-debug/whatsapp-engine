@@ -1,29 +1,33 @@
 from flask import Flask
 import threading
-import time
 import os
+import time
 
 app = Flask(__name__)
 
-# رقمك الثاني
+# رقمك اللي بدك تربطه
 MY_PHONE_NUMBER = "962785467150"
 
-def start_whatsapp():
-    print(f"⏳ جاري تشغيل محرك بايثون للرقم {MY_PHONE_NUMBER}...")
-    # هنا سنستخدم نظام المحاكاة للربط
-    # ملاحظة: بايثون يحتاج مكتبة معينة للتعامل مع بروتوكول واتساب
-    # لضمان عدم الحظر، سنطبع تعليمات الربط أولاً
+def run_whatsapp():
+    # محاكاة تشغيل المكتبة لطلب الكود
+    print("🚀 محرك بايثون بدأ العمل...")
     time.sleep(5)
-    print(f"\n🔥 طلب كود الربط لم يتم حظره في بايثون!")
-    print(f"🔑 كود الربط المتوقع سيظهر هنا بعد تثبيت المكتبات...")
+    print(f"⏳ جاري طلب كود الربط للرقم: {MY_PHONE_NUMBER}")
+    
+    # ملاحظة: هنا ستحتاج لتشغيل أمر الربط الفعلي من المكتبة
+    # للتبسيط الآن، سأجعله يطبع رسالة تنبيه لك في الـ Logs
+    print("\n----------------------------------")
+    print("🔥 المحرك جاهز! يرجى مراجعة شاشة Render Logs الآن")
+    print("----------------------------------\n")
 
 @app.route('/')
-def home():
-    return "Python WhatsApp Engine is Running! 🚀"
+def index():
+    return "WhatsApp Engine is Active! 🚀"
 
 if __name__ == "__main__":
-    # تشغيل الواتساب في خلفية السيرفر
-    threading.Thread(target=start_whatsapp).start()
+    # تشغيل الواتساب في خيط منفصل
+    threading.Thread(target=run_whatsapp).start()
+    
     # تشغيل سيرفر الويب
     port = int(os.environ.get("PORT", 3000))
     app.run(host='0.0.0.0', port=port)
